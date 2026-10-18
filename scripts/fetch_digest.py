@@ -126,6 +126,32 @@ def fetch_sspai(limit: int = 8) -> list[dict]:
     return items
 
 
+# ---------- 数据源 4: V2EX 热门讨论 ----------
+def fetch_v2ex_hot(limit: int = 10) -> list[dict]:
+    """V2EX 热门讨论 (官方公开 API, 无需登录)。
+
+    注意: 该 API 在部分网络环境不可达, 失败时本栏目会显示警告,
+    但不影响其他栏目 —— 这正是"单点失败不扩散"的设计。
+    """
+    data = get_json("https://www.v2ex.com/api/topics/hot.json")
+    items = []
+    for topic in data[:limit]:
+        title = (topic.get("title") or "").strip()
+        url = (topic.get("url") or "").strip()
+        if not title or not url:
+            continue
+        member = topic.get("member") or {}
+        items.append(
+            {
+                "title": title,
+                "url": url,
+                "author": member.get("username", "unknown"),
+                "replies": topic.get("replies", 0),
+            }
+        )
+    return items
+
+
 # ---------- 渲染: 每个栏目一个格式化函数 ----------
 def section_github(items: list[dict]) -> str:
     lines = ["| # | 项目 | 语言 | Star | 简介 |", "|---|------|------|------|------|"]
@@ -154,6 +180,15 @@ def section_sspai(items: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def section_v2ex(items: list[dict]) -> str:
+    lines = []
+    for i, it in enumerate(items, 1):
+        lines.append(
+            f"{i}. [{it['title']}]({it['url']}) — @{it['author']} · 💬 {it['replies']}"
+        )
+    return "\n".join(lines)
+
+
 # ---------- 组装日报 ----------
 def build_report() -> tuple[str, list[tuple[str, str]]]:
     """返回 (markdown 文本, [(栏目名, 状态)])"""
@@ -164,6 +199,7 @@ def build_report() -> tuple[str, list[tuple[str, str]]]:
         ("GitHub 本周新星 Top 10", "🚀", fetch_github_new_stars, section_github),
         ("Hacker News Top 10", "🔥", fetch_hn_top, section_hn),
         ("少数派精选", "📖", fetch_sspai, section_sspai),
+        ("V2EX 热门讨论", "💬", fetch_v2ex_hot, section_v2ex),
     ]
 
     parts = [
