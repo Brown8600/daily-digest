@@ -1,0 +1,42 @@
+name: 每日开发者日报
+
+on:
+  schedule:
+    # cron 使用 UTC 时间; 每天 00:00 UTC = 北京时间 08:00
+    - cron: "0 0 * * *"
+  workflow_dispatch:   # 允许在 GitHub 网页/CLI 上手动触发, 方便随时测试
+
+permissions:
+  contents: write      # 机器人需要把日报 commit 回仓库
+
+jobs:
+  fetch:
+    name: 抓取并发布日报
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 运行抓取脚本
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TZ: Asia/Shanghai
+        run: python scripts/fetch_digest.py
+
+      - name: 把日报提交回仓库
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/
+          if git diff --staged --quiet; then
+            echo "📭 今天没有新内容, 跳过提交"
+          else
+            git commit -m "docs: 开发者日报 $(TZ=Asia/Shanghai date +%Y-%m-%d)"
+            git push
+            echo "📤 日报已推送到仓库"
+          fi

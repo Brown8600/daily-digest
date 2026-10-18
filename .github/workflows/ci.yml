@@ -1,0 +1,29 @@
+name: CI 校验
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    name: 校验脚本可运行
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 语法检查
+        run: python -m py_compile scripts/fetch_digest.py
+
+      - name: 试运行（dry-run，不写文件）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TZ: Asia/Shanghai
+        run: python scripts/fetch_digest.py --dry-run
